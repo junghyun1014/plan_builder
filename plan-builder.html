@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>기획서 빌더 · AI ON 교육</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FBF7EF;
+    --paper-raised:#FFFFFF;
+    --ink:#14161B;
+    --ink-soft:#5B5F6B;
+    --ink-faint:#9A9EAA;
+    --line:#E7E1D2;
+    --line-strong:#D8CFB8;
+    --card-border:#14161B;
+    --dot:#E3DCC9;
+    --accent:#5B5FEF;
+    --accent-soft:#EAEAFE;
+    --shadow-hard: 4px 4px 0 var(--card-border);
+    --shadow-hard-sm: 3px 3px 0 var(--card-border);
+    --radius: 16px;
+    color-scheme: light;
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --paper:#121317;
+      --paper-raised:#1B1D23;
+      --ink:#F1F1F4;
+      --ink-soft:#ABAFBB;
+      --ink-faint:#6D7180;
+      --line:#2C2E36;
+      --line-strong:#3A3D48;
+      --card-border:#E7E1D2;
+      --dot:#26282F;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#121317; --paper-raised:#1B1D23; --ink:#F1F1F4; --ink-soft:#ABAFBB;
+    --ink-faint:#6D7180; --line:#2C2E36; --line-strong:#3A3D48; --card-border:#E7E1D2;
+    --dot:#26282F; color-scheme: dark;
+  }
+
+  *{ box-sizing:border-box; }
+  html{ scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    font-family:'Noto Sans KR', system-ui, -apple-system, sans-serif;
+    background:
+      radial-gradient(circle, var(--dot) 1.4px, transparent 1.4px) 0 0/22px 22px,
+      var(--paper);
+    color:var(--ink);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    -webkit-font-smoothing:antialiased;
+    transition: background-color .3s ease;
+  }
+  .mono{ font-family:'JetBrains Mono', ui-monospace, monospace; }
+  .display{ font-family:'Black Han Sans', 'Noto Sans KR', sans-serif; }
+
+  .app{ display:grid; grid-template-columns: 288px 1fr; min-height:100%; }
+  @media (max-width: 860px){
+    .app{ grid-template-columns: 1fr; }
+    .rail{ display:none; }
+    .mobile-progress{ display:flex; }
+    .bottom-nav{ display:flex; }
+    main{ padding-bottom:110px !important; }
+  }
+
+  /* ---------- rail ---------- */
+  .rail{
+    border-right:2px solid var(--ink);
+    padding:30px 22px;
+    position:sticky; top: env(safe-area-inset-top, 0px);
+    align-self:start; height:100vh; overflow-y:auto;
+    background:var(--paper-raised);
+  }
+  .rail-brand{ font-size:12.5px; color:var(--ink-faint); font-weight:700; margin-bottom:6px; }
+  .rail-title{ font-size:23px; margin:0 0 26px; line-height:1.25; }
+  .rail-track{ position:relative; padding-left:6px; }
+  .rail-track::before{
+    content:""; position:absolute; left:16px; top:14px; bottom:14px; width:2px;
+    background:var(--line-strong);
+  }
+  .rail-step{
+    position:relative; display:flex; align-items:flex-start; gap:13px;
+    padding:9px 8px 9px 2px; border-radius:10px; cursor:pointer;
+    color:var(--ink-faint); transition:background .15s ease, color .15s ease;
+  }
+  .rail-step:hover{ background:var(--paper); }
+  .rail-step.done{ color:var(--ink-soft); }
+  .rail-step.active{ color:var(--ink); }
+  .rail-dot{
+    position:relative; z-index:1;
+    width:24px; height:24px; border-radius:50%;
+    border:2px solid var(--line-strong); background:var(--paper-raised);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700;
+    color:var(--ink-faint);
+    transition: all .2s ease;
+  }
+  .rail-step.active .rail-dot{
+    border-color:var(--step-color); background:var(--step-color); color:#fff;
+    transform:scale(1.12);
+    box-shadow:0 0 0 4px var(--step-soft);
+  }
+  .rail-step.done .rail-dot{ border-color:var(--step-color); background:var(--step-color); color:#fff; }
+  .rail-step.done .rail-dot .num{ display:none; }
+  .rail-step.done .rail-dot::after{ content:"✓"; font-size:11px; }
+  .rail-step-label{ font-size:14px; font-weight:700; padding-top:3px; }
+
+  /* ---------- mobile progress ---------- */
+  .mobile-progress{
+    display:none; align-items:center; gap:5px;
+    padding: calc(env(safe-area-inset-top, 0px) + 14px) 18px 12px;
+    border-bottom:2px solid var(--ink);
+    background:var(--paper-raised); position:sticky; top:0; z-index:6;
+  }
+  .mobile-progress .dot{ flex:1; height:6px; border-radius:4px; background:var(--line-strong); transition:background .2s; }
+  .mobile-progress .dot.done, .mobile-progress .dot.active{ background:var(--step-color); }
+
+  .bottom-nav{
+    display:none; position:fixed; left:0; right:0; bottom:0; z-index:7;
+    padding:12px 16px calc(env(safe-area-inset-bottom, 0px) + 12px);
+    background:var(--paper-raised); border-top:2px solid var(--ink);
+    gap:10px;
+  }
+
+  /* ---------- main ---------- */
+  main{ padding:44px 36px 110px; max-width:640px; }
+  @media (max-width:600px){ main{ padding:22px 18px 110px; } }
+
+  .step-badge-row{ display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+  .step-sticker{
+    width:46px; height:46px; border-radius:12px; background:var(--step-color);
+    border:2.5px solid var(--ink); box-shadow:var(--shadow-hard-sm);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    transform:rotate(-4deg); color:#fff;
+  }
+  .step-sticker svg{ width:23px; height:23px; }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:13px; font-weight:700; color:var(--step-color);
+  }
+  .eyebrow .idx{ font-family:'JetBrains Mono',monospace; }
+
+  h1.step-title{
+    font-family:'Black Han Sans','Noto Sans KR',sans-serif;
+    font-weight:400;
+    font-size:30px; line-height:1.3; margin:0 0 10px; letter-spacing:-.01em;
+  }
+  .step-sub{ color:var(--ink-soft); font-size:15px; line-height:1.65; margin:0 0 26px; max-width:52ch; }
+
+  .field{ margin-bottom:22px; }
+  .field label{ display:block; font-weight:700; font-size:14.5px; margin-bottom:8px; }
+  .field .hint{ font-size:12.5px; color:var(--ink-faint); margin-top:7px; line-height:1.5; }
+  input[type=text], textarea{
+    width:100%; font-family:inherit; font-size:15px; color:var(--ink);
+    background:var(--paper-raised);
+    border:2px solid var(--ink); border-radius:12px; padding:13px 15px;
+    resize:vertical; line-height:1.55;
+    box-shadow:3px 3px 0 var(--line-strong);
+    transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease;
+  }
+  textarea{ min-height:96px; }
+  input[type=text]:focus, textarea:focus{
+    outline:none; border-color:var(--step-color);
+    box-shadow:3px 3px 0 var(--step-color);
+    transform:translate(-1px,-1px);
+  }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:520px){ .row2{ grid-template-columns:1fr; } }
+
+  .example-box{
+    position:relative;
+    background:var(--step-soft); border:2px dashed var(--step-color);
+    border-radius:12px; padding:14px 16px 14px 18px; margin-bottom:24px;
+    font-size:13.5px; color:var(--ink-soft); line-height:1.7;
+  }
+  .example-box .tag{
+    position:absolute; top:-11px; left:14px; background:var(--step-color); color:#fff;
+    font-size:11px; font-weight:700; padding:2px 9px; border-radius:20px;
+  }
+  .example-box b{ color:var(--ink); }
+
+  .nav-buttons{ display:flex; gap:10px; margin-top:6px; }
+  button{
+    font-family:inherit; font-size:15px; font-weight:700;
+    border-radius:12px; padding:13px 22px; cursor:pointer;
+    border:2px solid var(--ink);
+  }
+  button.primary{
+    background:var(--step-color); color:#fff;
+    box-shadow:var(--shadow-hard-sm);
+    transition: transform .1s ease, box-shadow .1s ease;
+  }
+  button.primary:hover:not(:disabled){ filter:brightness(1.04); }
+  button.primary:active:not(:disabled){ transform:translate(3px,3px); box-shadow:0 0 0 var(--ink); }
+  button.primary:disabled{ background:var(--line-strong); border-color:var(--line-strong); color:var(--ink-faint); box-shadow:none; cursor:not-allowed; }
+  button.ghost{ background:var(--paper-raised); color:var(--ink-soft); box-shadow:var(--shadow-hard-sm); }
+  button.ghost:active{ transform:translate(3px,3px); box-shadow:0 0 0; }
+
+  /* ---------- welcome ---------- */
+  .flow-mini{ display:flex; gap:8px; flex-wrap:wrap; margin:6px 0 28px; }
+  .flow-chip{
+    font-size:12.5px; font-weight:700; padding:7px 13px; border-radius:20px;
+    background:var(--paper-raised); border:2px solid var(--ink); color:var(--ink);
+    font-family:'JetBrains Mono',monospace;
+    box-shadow:2px 2px 0 var(--line-strong);
+  }
+
+  /* ---------- preview / done ---------- */
+  .preview-card{
+    background:var(--paper-raised); border:2px solid var(--ink);
+    border-radius:var(--radius); padding:20px 22px; margin-bottom:16px;
+    box-shadow:4px 4px 0 var(--card-color, var(--line-strong));
+  }
+  .preview-card .k{
+    display:inline-flex; align-items:center; gap:7px;
+    font-size:12px; font-weight:700; color:#fff;
+    background:var(--card-color, var(--ink-soft));
+    padding:4px 11px; border-radius:20px; margin-bottom:12px;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .preview-card .v{ font-size:14.5px; line-height:1.75; white-space:pre-wrap; }
+  .preview-card .v.empty{ color:var(--ink-faint); }
+
+  .celebrate{ font-family:'Black Han Sans','Noto Sans KR',sans-serif; font-weight:400; }
+
+  .download-zone{
+    margin-top:30px; padding:26px 24px; border-radius:var(--radius);
+    background:var(--ink); color:var(--paper-raised); text-align:center;
+    border:2px solid var(--ink); box-shadow:5px 5px 0 var(--step-color);
+    position:relative; overflow:hidden;
+  }
+  .download-zone .icon{ font-size:26px; margin-bottom:6px; display:block; }
+  .download-zone p{ margin:0 0 18px; color:#C9CCD6; font-size:14px; }
+  .download-zone button{
+    background:var(--step-color); border-color:var(--paper-raised);
+    color:#fff; width:100%; font-size:16.5px; padding:15px 20px;
+    box-shadow:3px 3px 0 var(--paper-raised);
+  }
+  .download-zone button:active:not(:disabled){ transform:translate(3px,3px); box-shadow:0 0 0; }
+  .download-zone button:disabled{ opacity:.6; cursor:wait; }
+  .status-line{ font-size:12.5px; margin-top:12px; color:#9FE3D3; min-height:16px; font-weight:600; }
+  .status-line.error{ color:#F3A69E; }
+
+  /* ---------- hidden pdf template ---------- */
+  #pdf-root{ position:fixed; left:-99999px; top:0; }
+  .pdf-page{ width:794px; background:#FFFFFF; color:#14161B; font-family:'Noto Sans KR', sans-serif; padding:56px 60px 64px; }
+  .pdf-header{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #14161B; padding-bottom:16px; margin-bottom:26px; }
+  .pdf-header .school{ font-size:12px; color:#8A8F9C; font-weight:700; letter-spacing:.04em; margin-bottom:4px; }
+  .pdf-header h2{ margin:0; font-size:23px; font-weight:900; }
+  .pdf-meta{ text-align:right; font-size:12.5px; color:#5B5F6B; line-height:1.6; }
+  .pdf-item{ margin-bottom:20px; page-break-inside:avoid; }
+  .pdf-item .num{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:22px; height:22px; border-radius:50%; color:#fff;
+    font-size:11.5px; font-weight:700; margin-right:8px; font-family:monospace;
+  }
+  .pdf-item .lbl{ font-size:14px; font-weight:700; }
+  .pdf-item .body{
+    margin:8px 0 0 30px; font-size:13.5px; line-height:1.75; color:#2B2E36;
+    white-space:pre-wrap; background:#FBF7EF; border:1px solid #E7E1D2;
+    border-radius:8px; padding:12px 14px;
+  }
+  .pdf-footer{ margin-top:30px; padding-top:14px; border-top:1px solid #E7E1D2; font-size:11px; color:#9A9EAA; display:flex; justify-content:space-between; }
+</style>
+</head>
+<body>
+
+<div class="mobile-progress" id="mobileProgress"></div>
+
+<div class="app">
+  <nav class="rail">
+    <div class="rail-brand">만성중학교 · AI ON 교육</div>
+    <h1 class="rail-title display">기획서<br>빌더</h1>
+    <div class="rail-track"><ul class="rail-steps" id="railSteps" style="list-style:none;margin:0;padding:0;"></ul></div>
+  </nav>
+
+  <main id="main"></main>
+</div>
+
+<div class="bottom-nav" id="bottomNav"></div>
+
+<div id="pdf-root"><div class="pdf-page" id="pdfPage"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var ICONS = {
+    student: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-4 3.5-6.5 7-6.5S19 16 19 20"/></svg>',
+    problem: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.2"/><path d="M15.2 15.2 20 20"/></svg>',
+    user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="3"/><path d="M3.5 19c0-3.4 2.6-5.6 5.5-5.6" /><circle cx="16" cy="9.5" r="2.4"/><path d="M13.2 19c.3-2.6 2-4.3 4.3-4.3 2.1 0 3.7 1.4 4 3.6"/></svg>',
+    feature: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 13h5l-1 8 8-10h-5l1-8Z"/></svg>',
+    io: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="5" height="6" rx="1.2"/><path d="M10.5 12h4"/><path d="M12.5 9.5 15 12l-2.5 2.5"/><rect x="16" y="9" width="5" height="6" rx="1.2"/></svg>',
+    exception: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 21 19H3L12 3.5Z"/><path d="M12 9.5v4.2"/><circle cx="12" cy="16.6" r=".4" fill="currentColor"/></svg>',
+    success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.2"/><path d="M12 12 15.5 8.5"/></svg>',
+    done: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3.5M12 17.5V21M3 12h3.5M17.5 12H21M5.6 5.6l2.5 2.5M15.9 15.9l2.5 2.5M18.4 5.6l-2.5 2.5M8.1 15.9l-2.5 2.5"/></svg>'
+  };
+
+  var STEPS = [
+    { key:"student", label:"학생 정보", color:"#5B5FEF", soft:"#EAEAFE" },
+    { key:"problem", label:"문제", color:"#FF5A5F", soft:"#FFE8E8" },
+    { key:"user", label:"사용자", color:"#2F80ED", soft:"#E5F0FE" },
+    { key:"feature", label:"핵심 기능", color:"#8B5CF6", soft:"#F1EAFE" },
+    { key:"io", label:"입력 · 결과", color:"#F2994A", soft:"#FEF1E2" },
+    { key:"exception", label:"예외 처리", color:"#EC4899", soft:"#FDE7F1" },
+    { key:"success", label:"성공 기준", color:"#10B981", soft:"#E3F8F0" },
+    { key:"done", label:"완료 · 다운로드", color:"#14161B", soft:"#ECECEE" }
+  ];
+
+  var STORAGE_KEY = "plan-builder-draft-v2";
+
+  var state = {
+    step: 0,
+    data: {
+      name:"", cls:"",
+      problemFact:"", problemDef:"",
+      user:"",
+      feature:"",
+      ioInput:"", ioButton:"", ioResult:"", ioEmpty:"",
+      exception:"",
+      success:""
+    }
+  };
+
+  function loadDraft(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        var parsed = JSON.parse(raw);
+        if(parsed && parsed.data) state.data = Object.assign(state.data, parsed.data);
+        if(typeof parsed.step === "number") state.step = Math.min(parsed.step, STEPS.length-1);
+      }
+    }catch(e){}
+  }
+  function saveDraft(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({ step: state.step, data: state.data })); }catch(e){}
+  }
+
+  function isStepValid(idx){
+    var d = state.data;
+    switch(STEPS[idx].key){
+      case "student": return d.name.trim().length > 0;
+      case "problem": return d.problemFact.trim().length > 0 && d.problemDef.trim().length > 0;
+      case "user": return d.user.trim().length > 0;
+      case "feature": return d.feature.trim().length > 0;
+      case "io": return !!(d.ioInput.trim() && d.ioButton.trim() && d.ioResult.trim() && d.ioEmpty.trim());
+      case "exception": return d.exception.trim().length > 0;
+      case "success": return d.success.trim().length > 0;
+      default: return true;
+    }
+  }
+  function furthestValidStep(){
+    for(var i=0;i<STEPS.length-1;i++){ if(!isStepValid(i)) return i; }
+    return STEPS.length-1;
+  }
+
+  function el(tag, attrs, children){
+    var e = document.createElement(tag); attrs = attrs || {};
+    Object.keys(attrs).forEach(function(k){
+      if(k === "class") e.className = attrs[k];
+      else if(k === "html") e.innerHTML = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    });
+    (children||[]).forEach(function(c){ if(c) e.appendChild(c); });
+    return e;
+  }
+  function text(tag, cls, str){ var e = el(tag, {class:cls}); e.textContent = str; return e; }
+
+  function applyTheme(idx){
+    var s = STEPS[idx];
+    document.documentElement.style.setProperty("--step-color", s.color);
+    document.documentElement.style.setProperty("--step-soft", s.soft);
+  }
+
+  function renderRail(){
+    var railSteps = document.getElementById("railSteps");
+    railSteps.innerHTML = "";
+    var reachable = furthestValidStep();
+    STEPS.forEach(function(s, i){
+      var cls = "rail-step";
+      if(i === state.step) cls += " active";
+      else if(i < furthestValidStep()) cls += " done";
+      var li = el("li", {class:cls});
+      li.style.setProperty("--step-color", s.color);
+      li.style.setProperty("--step-soft", s.soft);
+      li.addEventListener("click", function(){ if(i <= reachable || i === state.step) goTo(i); });
+      var dot = el("span", {class:"rail-dot"});
+      var numTxt = el("span", {class:"num"}); numTxt.textContent = String(i+1);
+      dot.appendChild(numTxt);
+      li.appendChild(dot);
+      li.appendChild(text("span","rail-step-label", s.label));
+      railSteps.appendChild(li);
+    });
+
+    var mp = document.getElementById("mobileProgress");
+    mp.innerHTML = "";
+    STEPS.forEach(function(s,i){
+      var dot = el("div", {class:"dot"});
+      dot.style.setProperty("--step-color", s.color);
+      if(i < state.step) dot.classList.add("done");
+      if(i === state.step) dot.classList.add("active");
+      mp.appendChild(dot);
+    });
+  }
+
+  function goTo(idx){
+    state.step = idx; saveDraft(); render();
+    window.scrollTo({top:0, behavior:"instant"});
+  }
+  function next(){ if(!isStepValid(state.step)) return; if(state.step < STEPS.length-1) goTo(state.step+1); }
+  function prev(){ if(state.step > 0) goTo(state.step-1); }
+
+  function bindInput(node, key){
+    node.value = state.data[key] || "";
+    node.addEventListener("input", function(){
+      state.data[key] = node.value; saveDraft(); updateNavState(); renderRail();
+    });
+  }
+
+  function makeField(labelStr, key, opts){
+    opts = opts || {};
+    var wrap = el("div", {class:"field"});
+    wrap.appendChild(text("label", "", labelStr));
+    var input = document.createElement(opts.textarea ? "textarea" : "input");
+    if(!opts.textarea) input.type = "text";
+    input.placeholder = opts.placeholder || "";
+    wrap.appendChild(input);
+    bindInput(input, key);
+    if(opts.hint){ wrap.appendChild(text("div","hint", opts.hint)); }
+    return wrap;
+  }
+
+  function makeExample(tagStr, html){
+    var box = el("div", {class:"example-box"});
+    box.appendChild(text("span","tag", tagStr));
+    var p = el("div", {}); p.innerHTML = html;
+    box.appendChild(p);
+    return box;
+  }
+
+  var navRefs = { primaryBtn:null, primaryBtnMobile:null };
+  function updateNavState(){
+    var disabled = !isStepValid(state.step);
+    if(navRefs.primaryBtn) navRefs.primaryBtn.disabled = disabled;
+    if(navRefs.primaryBtnMobile) navRefs.primaryBtnMobile.disabled = disabled;
+  }
+
+  function buildNavRow(opts, isMobile){
+    opts = opts || {};
+    var wrap = el("div", {class:"nav-buttons"});
+    if(state.step > 0){
+      var backBtn = el("button", {class:"ghost", type:"button"});
+      backBtn.textContent = "이전";
+      backBtn.addEventListener("click", prev);
+      wrap.appendChild(backBtn);
+    }
+    var nextBtn = el("button", {class:"primary", type:"button"});
+    nextBtn.textContent = opts.nextLabel || "다음";
+    nextBtn.style.flex = "1";
+    nextBtn.disabled = !isStepValid(state.step);
+    nextBtn.addEventListener("click", next);
+    if(isMobile) navRefs.primaryBtnMobile = nextBtn; else navRefs.primaryBtn = nextBtn;
+    wrap.appendChild(nextBtn);
+    return wrap;
+  }
+
+  function renderMain(){
+    var main = document.getElementById("main");
+    main.innerHTML = "";
+    var key = STEPS[state.step].key;
+    var s = STEPS[state.step];
+
+    var badgeRow = el("div", {class:"step-badge-row"});
+    var sticker = el("div", {class:"step-sticker", html: ICONS[key] });
+    badgeRow.appendChild(sticker);
+    var eyebrow = el("div", {class:"eyebrow"});
+    eyebrow.innerHTML = '<span class="idx">' + String(state.step+1).padStart(2,'0') + '</span><span>' + s.label + '</span>';
+    badgeRow.appendChild(eyebrow);
+    main.appendChild(badgeRow);
+
+    if(key === "student"){
+      main.appendChild(text("h1","step-title display","작은 불편을\n내가 쓰는 웹으로"));
+      main.appendChild(text("p","step-sub","오늘 만들 웹의 기획서를 단계별로 채워 봅니다. 다 채우면 마지막에 PDF로 내려받을 수 있어요."));
+      var flow = el("div", {class:"flow-mini"});
+      STEPS.slice(1,7).forEach(function(st){ flow.appendChild(text("span","flow-chip", st.label)); });
+      main.appendChild(flow);
+      var row = el("div", {class:"row2"});
+      row.appendChild(makeField("이름", "name", {placeholder:"예: 김만성"}));
+      row.appendChild(makeField("학번 · 반 (선택)", "cls", {placeholder:"예: 2학년 3반 12번"}));
+      main.appendChild(row);
+      main.appendChild(buildNavRow({nextLabel:"시작하기"}));
+    }
+
+    else if(key === "problem"){
+      main.appendChild(text("h1","step-title display","어떤 문제를 해결할까?"));
+      main.appendChild(text("p","step-sub","추측이 아니라, 내가 직접 겪었거나 확인한 사실에서 출발합니다."));
+      main.appendChild(makeExample("예시", "관찰: <b>청소 역할을 정할 때마다 5분 넘게 걸린다. 지난 2주간 3번 확인했다.</b>"));
+      main.appendChild(makeField("내가 관찰한 사실은 무엇인가요?", "problemFact", {
+        textarea:true, placeholder:"언제 · 어디서 · 누가 무엇을 했는지 사실로 써보세요.",
+        hint:"다른 사람도 확인할 수 있는 것이 사실입니다."
+      }));
+      main.appendChild(makeField("이 문제를 한 문장으로 정의하면?", "problemDef", {
+        textarea:true, placeholder:"예: 청소 역할을 정하는 데 시간이 오래 걸려서 매번 갈등이 생긴다."
+      }));
+      main.appendChild(buildNavRow());
+    }
+
+    else if(key === "user"){
+      main.appendChild(text("h1","step-title display","누가 사용하나요?"));
+      main.appendChild(text("p","step-sub","사용자를 구체적으로 적을수록 기능을 판단하기 쉬워집니다."));
+      main.appendChild(makeField("사용자", "user", {
+        textarea:true, placeholder:"예: 우리 반 학생 24명, 매주 월요일 아침 청소 당번을 정할 때 담당 학생이 사용한다."
+      }));
+      main.appendChild(buildNavRow());
+    }
+
+    else if(key === "feature"){
+      main.appendChild(text("h1","step-title display","핵심 기능 한 가지"));
+      main.appendChild(text("p","step-sub","오늘 한 화면 웹으로 줄일 수 있는, 딱 한 가지 핵심 기능부터 구체화합니다."));
+      main.appendChild(makeField("핵심 기능", "feature", {
+        textarea:true, placeholder:"예: 학생 명단을 입력하면 중복 없이 청소 역할을 랜덤으로 배정해 보여준다."
+      }));
+      main.appendChild(buildNavRow());
+    }
+
+    else if(key === "io"){
+      main.appendChild(text("h1","step-title display","입력 → 버튼 → 결과"));
+      main.appendChild(text("p","step-sub","꾸미기보다 작동을 먼저 확인합니다."));
+      main.appendChild(makeField("입력값", "ioInput", {placeholder:"예: 학생 이름 목록, 역할 개수"}));
+      main.appendChild(makeField("버튼을 눌렀을 때의 동작", "ioButton", {placeholder:"예: '배정하기' 버튼을 누르면 역할을 무작위로 나눈다"}));
+      main.appendChild(makeField("결과 화면", "ioResult", {placeholder:"예: 이름과 배정된 역할이 표로 표시된다"}));
+      main.appendChild(makeField("빈 입력일 때 처리 방법", "ioEmpty", {placeholder:"예: 이름을 입력하지 않으면 안내 문구를 보여준다"}));
+      main.appendChild(buildNavRow());
+    }
+
+    else if(key === "exception"){
+      main.appendChild(text("h1","step-title display","놓치기 쉬운 상황들"));
+      main.appendChild(text("p","step-sub","입력값이 이상하거나, 같은 동작을 반복하는 상황을 미리 정해 둡니다."));
+      main.appendChild(makeField("예외 처리", "exception", {
+        textarea:true, placeholder:"예: 같은 이름이 중복 입력되면 안내하고, 버튼을 여러 번 눌러도 항상 새로 배정된다."
+      }));
+      main.appendChild(buildNavRow());
+    }
+
+    else if(key === "success"){
+      main.appendChild(text("h1","step-title display","무엇이 되면 성공?"));
+      main.appendChild(text("p","step-sub","화면이 예쁜지보다, 기획서의 약속대로 작동하는지를 기준으로 삼습니다."));
+      main.appendChild(makeField("성공 기준", "success", {
+        textarea:true, placeholder:"예: 24명의 이름을 입력하면 중복 없이 역할이 배정되고, 빈 입력에는 안내 문구가 뜬다."
+      }));
+      main.appendChild(buildNavRow({nextLabel:"기획서 확인하기"}));
+    }
+
+    else if(key === "done"){
+      renderDone(main);
+    }
+
+    var bottomNav = document.getElementById("bottomNav");
+    bottomNav.innerHTML = "";
+    if(key !== "done"){
+      bottomNav.appendChild(buildNavRow({nextLabel: key==="student" ? "시작하기" : (key==="success" ? "기획서 확인하기" : "다음")}, true));
+    }
+
+    updateNavState();
+  }
+
+  function pv(label, value, colorIdx){
+    var card = el("div", {class:"preview-card"});
+    card.style.setProperty("--card-color", STEPS[colorIdx].color);
+    var k = el("span", {class:"k"}); k.textContent = label;
+    card.appendChild(k);
+    var v = el("div", {class:"v"});
+    if(value && value.trim()){ v.textContent = value; }
+    else{ v.textContent = "(작성되지 않음)"; v.classList.add("empty"); }
+    card.appendChild(v);
+    return card;
+  }
+
+  function renderDone(main){
+    var d = state.data;
+    main.appendChild(text("h1","step-title display celebrate", (d.name || "학생") + "님의 기획서"));
+    main.appendChild(text("p","step-sub","내용을 확인하고, 이상이 없으면 PDF로 내려받으세요. 왼쪽 목록에서 단계를 눌러 언제든 고칠 수 있어요."));
+
+    main.appendChild(pv("문제", d.problemDef + (d.problemFact ? ("\n\n관찰한 사실: " + d.problemFact) : ""), 1));
+    main.appendChild(pv("사용자", d.user, 2));
+    main.appendChild(pv("핵심 기능", d.feature, 3));
+    main.appendChild(pv("입력 · 결과", "입력값: " + d.ioInput + "\n버튼 동작: " + d.ioButton + "\n결과 화면: " + d.ioResult + "\n빈 입력 처리: " + d.ioEmpty, 4));
+    main.appendChild(pv("예외 처리", d.exception, 5));
+    main.appendChild(pv("성공 기준", d.success, 6));
+
+    var zone = el("div", {class:"download-zone"});
+    zone.appendChild(text("span","icon","📄"));
+    zone.appendChild(text("p","", "이름과 반이 파일명에 자동으로 들어갑니다."));
+    var btn = el("button", {type:"button"});
+    btn.textContent = "기획서 PDF 다운로드";
+    var status = el("div", {class:"status-line"});
+    btn.addEventListener("click", function(){ handleDownload(btn, status); });
+    zone.appendChild(btn);
+    zone.appendChild(status);
+    main.appendChild(zone);
+
+    var nav = el("div", {class:"nav-buttons"});
+    nav.style.marginTop = "18px";
+    var backBtn = el("button", {class:"ghost", type:"button"});
+    backBtn.textContent = "이전 단계로";
+    backBtn.addEventListener("click", prev);
+    nav.appendChild(backBtn);
+    main.appendChild(nav);
+  }
+
+  function render(){
+    applyTheme(state.step);
+    renderRail();
+    renderMain();
+  }
+
+  function buildPdfTemplate(){
+    var d = state.data;
+    var page = document.getElementById("pdfPage");
+    page.innerHTML = "";
+    var header = el("div", {class:"pdf-header"});
+    var left = el("div", {});
+    left.appendChild(text("div","school","만성중학교 · AI ON 교육"));
+    left.appendChild(el("h2", {}, [document.createTextNode("개인 웹 제작 기획서")]));
+    var right = el("div", {class:"pdf-meta"});
+    right.innerHTML = (d.name ? ("이름: " + escapeHtml(d.name) + "<br>") : "") +
+                       (d.cls ? ("반: " + escapeHtml(d.cls) + "<br>") : "") +
+                       "작성일: " + new Date().toLocaleDateString("ko-KR");
+    header.appendChild(left); header.appendChild(right);
+    page.appendChild(header);
+
+    var items = [
+      ["1", "문제", STEPS[1].color, (d.problemDef || "") + (d.problemFact ? ("\n\n[관찰한 사실]\n" + d.problemFact) : "")],
+      ["2", "사용자", STEPS[2].color, d.user],
+      ["3", "핵심 기능", STEPS[3].color, d.feature],
+      ["4", "입력 · 결과", STEPS[4].color, "입력값: " + d.ioInput + "\n버튼을 눌렀을 때: " + d.ioButton + "\n결과 화면: " + d.ioResult + "\n빈 입력 처리: " + d.ioEmpty],
+      ["5", "예외 처리", STEPS[5].color, d.exception],
+      ["6", "성공 기준", STEPS[6].color, d.success]
+    ];
+    items.forEach(function(it){
+      var item = el("div", {class:"pdf-item"});
+      var lblRow = el("div", {});
+      var num = el("span", {class:"num"}); num.style.background = it[2]; num.textContent = it[0];
+      lblRow.appendChild(num);
+      lblRow.appendChild(el("span", {class:"lbl"}, [document.createTextNode(it[1])]));
+      item.appendChild(lblRow);
+      var body = el("div", {class:"body"});
+      body.textContent = it[3] || "(작성되지 않음)";
+      item.appendChild(body);
+      page.appendChild(item);
+    });
+
+    var footer = el("div", {class:"pdf-footer"});
+    footer.appendChild(document.createTextNode("생활 속 문제를 AI와 웹으로 해결하기"));
+    footer.appendChild(document.createTextNode("우리들교육 · 강사 신정현"));
+    page.appendChild(footer);
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  function handleDownload(btn, status){
+    btn.disabled = true;
+    status.className = "status-line";
+    status.textContent = "PDF를 만들고 있어요…";
+    buildPdfTemplate();
+
+    setTimeout(function(){
+      html2canvas(document.getElementById("pdfPage"), { scale: 2, useCORS:true, backgroundColor:"#FFFFFF" })
+        .then(function(canvas){
+          var jsPDFCtor = window.jspdf && window.jspdf.jsPDF;
+          if(!jsPDFCtor){ throw new Error("PDF 라이브러리를 불러오지 못했습니다."); }
+          var pdf = new jsPDFCtor({ unit:"mm", format:"a4" });
+          var pageW = pdf.internal.pageSize.getWidth();
+          var pageH = pdf.internal.pageSize.getHeight();
+          var imgW = pageW;
+          var imgH = (canvas.height * imgW) / canvas.width;
+          var imgData = canvas.toDataURL("image/jpeg", 0.95);
+
+          if(imgH <= pageH){
+            pdf.addImage(imgData, "JPEG", 0, 0, imgW, imgH);
+          } else {
+            var pageCanvasHeightPx = Math.floor((pageH * canvas.width) / imgW);
+            var remainingPx = canvas.height;
+            var offsetPx = 0;
+            var first = true;
+            while(remainingPx > 0){
+              var sliceHeightPx = Math.min(pageCanvasHeightPx, remainingPx);
+              var sliceCanvas = document.createElement("canvas");
+              sliceCanvas.width = canvas.width;
+              sliceCanvas.height = sliceHeightPx;
+              var ctx = sliceCanvas.getContext("2d");
+              ctx.fillStyle = "#FFFFFF";
+              ctx.fillRect(0,0,sliceCanvas.width, sliceCanvas.height);
+              ctx.drawImage(canvas, 0, offsetPx, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
+              var sliceData = sliceCanvas.toDataURL("image/jpeg", 0.95);
+              var sliceImgH = (sliceHeightPx * imgW) / canvas.width;
+              if(!first) pdf.addPage();
+              pdf.addImage(sliceData, "JPEG", 0, 0, imgW, sliceImgH);
+              offsetPx += sliceHeightPx; remainingPx -= sliceHeightPx; first = false;
+            }
+          }
+
+          var blob = pdf.output("blob");
+          var namePart = (state.data.name || "학생").trim().replace(/\s+/g,"");
+          var filename = "기획서_" + namePart + ".pdf";
+          offerDownload(blob, filename, btn, status);
+        })
+        .catch(function(err){
+          status.className = "status-line error";
+          status.textContent = "PDF 생성 중 문제가 발생했어요. 다시 시도해 주세요.";
+          btn.disabled = false;
+        });
+    }, 60);
+  }
+
+  function offerDownload(blob, filename, btn, status){
+    if(window.claude && typeof window.claude.use === "function"){
+      window.claude.use("downloads").then(function(downloads){
+        if(!downloads){ fallbackDownload(blob, filename, btn, status); return; }
+        downloads.save({ filename: filename, data: blob }).then(function(res){
+          status.className = "status-line";
+          status.textContent = res.status === "saved" ? "저장되었습니다." : "전달되었습니다.";
+          btn.disabled = false;
+        }).catch(function(err){
+          if(err && err.code === "declined"){
+            status.className = "status-line";
+            status.textContent = "다운로드가 취소되었습니다.";
+          } else { fallbackDownload(blob, filename, btn, status); }
+          btn.disabled = false;
+        });
+      }).catch(function(){ fallbackDownload(blob, filename, btn, status); });
+    } else { fallbackDownload(blob, filename, btn, status); }
+  }
+
+  function fallbackDownload(blob, filename, btn, status){
+    try{
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+      status.className = "status-line";
+      status.textContent = "저장되었습니다.";
+    }catch(e){
+      status.className = "status-line error";
+      status.textContent = "이 환경에서는 자동 다운로드를 지원하지 않아요.";
+    }
+    btn.disabled = false;
+  }
+
+  loadDraft();
+  render();
+})();
+</script>
+</body>
+</html>
